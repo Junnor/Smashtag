@@ -101,7 +101,7 @@ class TweetTableViewController: UITableViewController, UITextFieldDelegate {
     }
 
 
-    // MARK: - Table view data source
+    // MARK: - TableView DataSource
 
     override func numberOfSectionsInTableView(tableView: UITableView) -> Int {
         return tweets.count
