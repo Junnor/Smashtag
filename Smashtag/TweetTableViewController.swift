@@ -30,12 +30,6 @@ class TweetTableViewController: UITableViewController, UITextFieldDelegate {
         tableView.rowHeight = UITableViewAutomaticDimension
         
         refresh()
-        
-        // Uncomment the following line to preserve selection between presentations
-        // self.clearsSelectionOnViewWillAppear = false
-
-        // Uncomment the following line to display an Edit button in the navigation bar for this view controller.
-        // self.navigationItem.rightBarButtonItem = self.editButtonItem()
     }
     
     // get more data
@@ -50,7 +44,6 @@ class TweetTableViewController: UITableViewController, UITextFieldDelegate {
         } else {
             return lastSuccessfulRequst!.requestForNewer
         }
-        
     }
     
     func refresh() {
@@ -100,6 +93,49 @@ class TweetTableViewController: UITableViewController, UITextFieldDelegate {
         return true
     }
 
+    // MARK: - Segue
+    
+    override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {
+        let tweetDTV = segue.destinationViewController as? TweetDetailTableViewController
+        if let identifier = segue.identifier {
+            if identifier == "ShowTweetDetail" {
+                if let tweetCell = sender as? TweetTableViewCell {
+                    let selectedTweet = tweetCell.tweet!
+                    
+                    var mediaUrls = [String]()
+                    for media in selectedTweet.media {
+                        mediaUrls.append(media.url.absoluteString)
+                        tweetDTV?.imageAspectRatio = media.aspectRatio
+                    }
+                    
+                    tweetDTV?.mediaUrls = mediaUrls
+                    tweetDTV?.urls = stringsForTweetInfos(selectedTweet.urls)
+                    tweetDTV?.userMentions = stringsForTweetInfos(selectedTweet.userMentions)
+                    tweetDTV?.hashtags = stringsForTweetInfos(selectedTweet.hashtags)
+                    
+                }
+            }
+            tweetDTV?.title = "Tweet Detail"
+            
+        }
+    }
+    
+    @IBAction override func unwindForSegue(unwindSegue: UIStoryboardSegue, towardsViewController subsequentVC: UIViewController) {
+        print("unwindForSegue()")
+        if unwindSegue.identifier == "TweetDetailComeBack" {
+            if let backVC = unwindSegue.sourceViewController as? TweetDetailTableViewController {
+                searchText = backVC.unwindTappedString
+            }
+        }
+    }
+    
+    func stringsForTweetInfos(keys: [Tweet.IndexedKeyword]) -> [String] {
+        var strings = [String]()
+        for key in keys {
+            strings.append(key.keyword)
+        }
+        return strings
+    }
 
     // MARK: - TableView DataSource
 
@@ -119,50 +155,5 @@ class TweetTableViewController: UITableViewController, UITextFieldDelegate {
         
         return cell
     }
-
-    /*
-    // Override to support conditional editing of the table view.
-    override func tableView(tableView: UITableView, canEditRowAtIndexPath indexPath: NSIndexPath) -> Bool {
-        // Return false if you do not want the specified item to be editable.
-        return true
-    }
-    */
-
-    /*
-    // Override to support editing the table view.
-    override func tableView(tableView: UITableView, commitEditingStyle editingStyle: UITableViewCellEditingStyle, forRowAtIndexPath indexPath: NSIndexPath) {
-        if editingStyle == .Delete {
-            // Delete the row from the data source
-            tableView.deleteRowsAtIndexPaths([indexPath], withRowAnimation: .Fade)
-        } else if editingStyle == .Insert {
-            // Create a new instance of the appropriate class, insert it into the array, and add a new row to the table view
-        }    
-    }
-    */
-
-    /*
-    // Override to support rearranging the table view.
-    override func tableView(tableView: UITableView, moveRowAtIndexPath fromIndexPath: NSIndexPath, toIndexPath: NSIndexPath) {
-
-    }
-    */
-
-    /*
-    // Override to support conditional rearranging of the table view.
-    override func tableView(tableView: UITableView, canMoveRowAtIndexPath indexPath: NSIndexPath) -> Bool {
-        // Return false if you do not want the item to be re-orderable.
-        return true
-    }
-    */
-
-    /*
-    // MARK: - Navigation
-
-    // In a storyboard-based application, you will often want to do a little preparation before navigation
-    override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {
-        // Get the new view controller using segue.destinationViewController.
-        // Pass the selected object to the new view controller.
-    }
-    */
 
 }
