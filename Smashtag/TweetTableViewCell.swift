@@ -20,7 +20,7 @@ class TweetTableViewCell: UITableViewCell {
     @IBOutlet weak var tweetScreenNameLabel: UILabel!
     @IBOutlet weak var tweetTextLabel: UILabel!
     
-    func updateUI() {
+    private func updateUI() {
         tweetProfileImageView.image = nil
         tweetScreenNameLabel.text = nil
         tweetTextLabel.attributedText = nil

@@ -15,6 +15,7 @@ class TweetImageTableViewCell: UITableViewCell {
             tweetProfileImageView.sizeToFit()
         }
     }
+    
     @IBOutlet weak var spinner: UIActivityIndicatorView!
     
 }

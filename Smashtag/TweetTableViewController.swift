@@ -10,7 +10,6 @@ import UIKit
 
 class TweetTableViewController: UITableViewController, UITextFieldDelegate {
     
-    var tweets = [[Tweet]]()
     var searchText: String? = "#stanford" {
         didSet {
             lastSuccessfulRequst = nil
@@ -18,8 +17,15 @@ class TweetTableViewController: UITableViewController, UITextFieldDelegate {
             tweets.removeAll()
             tableView.reloadData()
             refresh()
+            
+            if searchText != nil {
+                let recentSearchVC = TweetRecentSearchTableViewController()
+                recentSearchVC.recentSearchText = searchText!
+            }
         }
     }
+    
+    private var tweets = [[Tweet]]()
     
     // MARK: - View Controller lifecycel
 
@@ -33,8 +39,8 @@ class TweetTableViewController: UITableViewController, UITextFieldDelegate {
     }
     
     // get more data
-    var lastSuccessfulRequst: TwitterRequest?
-    var nextRequestToAttempt: TwitterRequest? {
+    private var lastSuccessfulRequst: TwitterRequest?
+    private var nextRequestToAttempt: TwitterRequest? {
         if lastSuccessfulRequst == nil {
             if searchText != nil {
                 return TwitterRequest(search: searchText!, count: 100)
@@ -46,7 +52,7 @@ class TweetTableViewController: UITableViewController, UITextFieldDelegate {
         }
     }
     
-    func refresh() {
+    private func refresh() {
         if refreshControl != nil {
             refreshControl?.beginRefreshing()
         }

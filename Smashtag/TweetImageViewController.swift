@@ -10,7 +10,6 @@ import UIKit
 
 class TweetImageViewController: UIViewController {
     
-    private var imageView = UIImageView()
     var image: UIImage? {
         get {
             return imageView.image
@@ -23,7 +22,8 @@ class TweetImageViewController: UIViewController {
         }
     }
     
-    func getImageViewsFrameFromImage(image: UIImage?) -> CGRect {
+    private var imageView = UIImageView()
+    private func getImageViewsFrameFromImage(image: UIImage?) -> CGRect {
         if image != nil {
             let viewAspectRatio = self.view.bounds.size.width / self.view.bounds.size.height
             let imageAspectRatio = (image?.size.width)! / (image?.size.height)!
