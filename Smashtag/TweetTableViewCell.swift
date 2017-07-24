@@ -20,7 +20,7 @@ class TweetTableViewCell: UITableViewCell {
     @IBOutlet weak var tweetScreenNameLabel: UILabel!
     @IBOutlet weak var tweetTextLabel: UILabel!
     
-    private func updateUI() {
+    fileprivate func updateUI() {
         tweetProfileImageView.image = nil
         tweetScreenNameLabel.text = nil
         tweetTextLabel.attributedText = nil
@@ -37,13 +37,13 @@ class TweetTableViewCell: UITableViewCell {
                 
                 // highlight the hashtag, url and mention user
                 for hashtag in tweet.hashtags {
-                    mutaAttStr.addAttributes([NSForegroundColorAttributeName: UIColor.blueColor()], range: hashtag.nsrange)
+                    mutaAttStr.addAttributes([NSForegroundColorAttributeName: UIColor.blue], range: hashtag.nsrange)
                 }
                 for url in tweet.urls {
-                    mutaAttStr.addAttributes([NSForegroundColorAttributeName: UIColor.blueColor()], range: url.nsrange)
+                    mutaAttStr.addAttributes([NSForegroundColorAttributeName: UIColor.blue], range: url.nsrange)
                 }
                 for mentionUser in tweet.userMentions {
-                    mutaAttStr.addAttributes([NSForegroundColorAttributeName: UIColor.blueColor()], range: mentionUser.nsrange)
+                    mutaAttStr.addAttributes([NSForegroundColorAttributeName: UIColor.blue], range: mentionUser.nsrange)
 
                 }
                 
@@ -54,12 +54,14 @@ class TweetTableViewCell: UITableViewCell {
             tweetScreenNameLabel?.text = "\(tweet.user)"
             
             if let profileImageURL = tweet.user.profileImageURL {
-                dispatch_async(dispatch_get_global_queue(Int(QOS_CLASS_USER_INITIATED.rawValue), 0)) { () -> Void in
-                    if let imageeData = NSData(contentsOfURL: profileImageURL) { // Block main thread
-                        dispatch_async(dispatch_get_main_queue()) { () -> Void in
+                
+                DispatchQueue.global().sync {
+                    if let imageeData = try? Data(contentsOf: profileImageURL) { // Block main thread
+                        DispatchQueue.main.async { () -> Void in
                             self.tweetProfileImageView?.image = UIImage(data: imageeData)
                         }
                     }
+
                 }
             }
         }

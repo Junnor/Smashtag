@@ -3,168 +3,213 @@
 //  Twitter
 //
 //  Created by CS193p Instructor.
-//  Copyright (c) 2015 Stanford University. All rights reserved.
+//  Copyright (c) 2015-17 Stanford University. All rights reserved.
 //
 
 import Foundation
 
-// a simple container class which just holds the data in a Tweet
-// IndexedKeywords are substrings of the Tweet's text
+// a simple container which just holds the data in a Tweet
+// a Mention is a substring of the Tweet's text
 // for example, a hashtag or other user or url that is mentioned in the Tweet
-// note carefully the comments on the two range properties in an IndexedKeyword
-// Tweet instances re created by fetching from Twitter using a TwitterRequest
+// note carefully the comments on the range property in a Mention
+// Tweet instances are created by fetching from Twitter using a Twitter.Request
 
-public class Tweet : CustomStringConvertible
+public struct Tweet : CustomStringConvertible
 {
-    public let text: String!
-    public let user: User!
-    public let created: NSDate!
-    public let id: String?
+    public let text: String
+    public let user: User
+    public let created: Date
+    public let identifier: String
     public let media: [MediaItem]
-    public let hashtags: [IndexedKeyword]
-    public let urls: [IndexedKeyword]
-    public let userMentions: [IndexedKeyword]
-
-    public struct IndexedKeyword: CustomStringConvertible
+    public let hashtags: [Mention]
+    public let urls: [Mention]
+    public let userMentions: [Mention]
+    
+    public var description: String { return "\(user) - \(created)\n\(text)\nhashtags: \(hashtags)\nurls: \(urls)\nuser_mentions: \(userMentions)" + "\nid: \(identifier)" }
+    
+    // MARK: - Internal Implementation
+    
+    init?(data: NSDictionary?)
     {
-        public let keyword: String              // will include # or @ or http:// prefix
-        public let range: Range<String.Index>   // index into the Tweet's text property only
-        public let nsrange: NSRange             // index into an NS[Attributed]String made from the Tweet's text
-
-        public init?(data: NSDictionary?, inText: String, prefix: String?) {
-            let indices = data?.valueForKeyPath(TwitterKey.Entities.Indices) as? NSArray
-            if let startIndex = (indices?.firstObject as? NSNumber)?.integerValue {
-                if let endIndex = (indices?.lastObject as? NSNumber)?.integerValue {
-//                    let length = count(inText)
-                    
-                    let length = (inText as NSString).length
-                        
-                    if length > 0 {
-                        let start = max(min(startIndex, length-1), 0)
-                        let end = max(min(endIndex, length), 0)
-                        if end > start {
-//                            var adjustedRange = advance(inText.startIndex, start)...advance(inText.startIndex, end-1)
-                            
-                            var adjustedRange = inText.characters.startIndex.advancedBy(start)...inText.characters.startIndex.advancedBy(end - 1)
-                            
-
-
-                            var keywordInText = inText.substringWithRange(adjustedRange)
-                            if prefix != nil && !keywordInText.hasPrefix(prefix!) && start > 0 {
-//                                adjustedRange = advance(inText.startIndex, start-1)...advance(inText.startIndex, end-2)
-                                adjustedRange = inText.characters.startIndex.advancedBy(start - 1)...inText.characters.startIndex.advancedBy(end - 2)
-                               
-
-                                keywordInText = inText.substringWithRange(adjustedRange)
-                            }
-                            range = adjustedRange
-                            keyword = keywordInText
-                            if prefix == nil || keywordInText.hasPrefix(prefix!) {
-                                nsrange = inText.rangeOfString(keyword, nearRange: NSMakeRange(startIndex, endIndex-startIndex))
-                                if nsrange.location != NSNotFound {
-                                    // failable initializers are required to initialize all properties before returning failure
-                                    // (this is probably just a (temporary?) limitation of the implementation of Swift)
-                                    // however, it appears that (sometimes) you can "return" in the case of success like this
-                                    // and it avoids the warning (although "return" is sort of weird in an initializer)
-                                    // (this seems to work even though all the properties are NOT initialized for the "return nil" below)
-                                    // hopefully in future versions of Swift this will all not be an issue
-                                    // because you'll be allowed to fail without initializing all properties?
-                                    return
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            // it is possible we will get here without all properties being initialized
-            // hopefully that won't cause a problem even though the compiler does not complain? :)
+        guard
+            let user = User(data: data?.dictionary(forKeyPath: TwitterKey.user)),
+            let text = data?.string(forKeyPath: TwitterKey.text),
+            let created = twitterDateFormatter.date(from: data?.string(forKeyPath: TwitterKey.created) ?? ""),
+            let identifier = data?.string(forKeyPath: TwitterKey.identifier)
+        else {
             return nil
         }
 
-        public var description: String { get { return "\(keyword) (\(nsrange.location), \(nsrange.location+nsrange.length-1))" } }
+        self.user = user
+        self.text = text
+        self.created = created
+        self.identifier = identifier
+
+        self.media = Tweet.mediaItems(from: data?.array(forKeyPath: TwitterKey.media))
+        self.hashtags = Tweet.mentions(from: data?.array(forKeyPath: TwitterKey.Entities.hashtags), in: text, with: "#")
+        self.urls = Tweet.mentions(from: data?.array(forKeyPath: TwitterKey.Entities.urls), in: text, with: "http")
+        self.userMentions = Tweet.mentions(from: data?.array(forKeyPath: TwitterKey.Entities.userMentions), in: text, with: "@")
     }
     
-    public var description: String { return "\(user) - \(created)\n\(text)\nhashtags: \(hashtags)\nurls: \(urls)\nuser_mentions: \(userMentions)" + (id == nil ? "" : "\nid: \(id!)") }
-
-    // MARK: - Private Implementation
-
-    init?(data: NSDictionary?) {
-        user = User(data: data?.valueForKeyPath(TwitterKey.User) as? NSDictionary)
-        text = data?.valueForKeyPath(TwitterKey.Text) as? String
-        created = (data?.valueForKeyPath(TwitterKey.Created) as? String)?.asTwitterDate
-        id = data?.valueForKeyPath(TwitterKey.ID) as? String
-        var accumulatedMedia = [MediaItem]()
-        if let mediaEntities = data?.valueForKeyPath(TwitterKey.Media) as? NSArray {
-            for mediaData in mediaEntities {
-                if let mediaItem = MediaItem(data: mediaData as? NSDictionary) {
-                    accumulatedMedia.append(mediaItem)
-                }
+    private static func mediaItems(from twitterData: NSArray?) -> [MediaItem] {
+        var mediaItems = [MediaItem]()
+        for mediaItemData in twitterData ?? [] {
+            if let mediaItem = MediaItem(data: mediaItemData as? NSDictionary) {
+                mediaItems.append(mediaItem)
             }
         }
-        media = accumulatedMedia
-        let hashtagMentionsArray = data?.valueForKeyPath(TwitterKey.Entities.Hashtags) as? NSArray
-        hashtags = Tweet.getIndexedKeywords(hashtagMentionsArray, inText: text, prefix: "#")
-        let urlMentionsArray = data?.valueForKeyPath(TwitterKey.Entities.URLs) as? NSArray
-        urls = Tweet.getIndexedKeywords(urlMentionsArray, inText: text, prefix: "h")
-        let userMentionsArray = data?.valueForKeyPath(TwitterKey.Entities.UserMentions) as? NSArray
-        userMentions = Tweet.getIndexedKeywords(userMentionsArray, inText: text, prefix: "@")
-        
-        if user == nil || text == nil || created == nil {
-            return nil
-        }
+        return mediaItems
     }
-
-    private class func getIndexedKeywords(dictionary: NSArray?, inText: String, prefix: String? = nil) -> [IndexedKeyword] {
-        var results = [IndexedKeyword]()
-        if let indexedKeywords = dictionary {
-            for indexedKeywordData in indexedKeywords {
-                if let indexedKeyword = IndexedKeyword(data: indexedKeywordData as? NSDictionary, inText: inText, prefix: prefix) {
-                    results.append(indexedKeyword)
-                }
+    
+    private static func mentions(from twitterData: NSArray?, in text: String, with prefix: String) -> [Mention] {
+        var mentions = [Mention]()
+        for mentionData in twitterData ?? [] {
+            if let mention = Mention(from: mentionData as? NSDictionary, in: text as NSString, with: prefix) {
+                mentions.append(mention)
             }
         }
-        return results
+        return mentions
     }
     
     struct TwitterKey {
-        static let User = "user"
-        static let Text = "text"
-        static let Created = "created_at"
-        static let ID = "id_str"
-        static let Media = "entities.media"
+        static let user = "user"
+        static let text = "text"
+        static let created = "created_at"
+        static let identifier = "id_str"
+        static let media = "entities.media"
         struct Entities {
-            static let Hashtags = "entities.hashtags"
-            static let URLs = "entities.urls"
-            static let UserMentions = "entities.user_mentions"
-            static let Indices = "indices"
+            static let hashtags = "entities.hashtags"
+            static let urls = "entities.urls"
+            static let userMentions = "entities.user_mentions"
+            static let indices = "indices"
+            static let text = "text"
         }
     }
 }
 
-private extension NSString {
-    func rangeOfString(substring: NSString, nearRange: NSRange) -> NSRange {
-        var start = max(min(nearRange.location, length-1), 0)
-        var end = max(min(nearRange.location + nearRange.length, length), 0)
-        var done = false
-        while !done {
-            let range = self.rangeOfString(substring as String, options: NSStringCompareOptions(), range: NSMakeRange(start, end-start))
-            if range.location != NSNotFound {
-                return range
-            }
-            done = true
-            if start > 0 { start-- ; done = false }
-            if end < length { end++ ; done = false }
+public struct Mention: CustomStringConvertible
+{
+    public let keyword: String              // will include # or @ or http prefix
+    public let nsrange: NSRange             // index into an NS[Attributed]String made from the Tweet's text
+    
+    public var description: String { return "\(keyword) (\(nsrange.location), \(nsrange.location+nsrange.length-1))" }
+    
+    init?(from data: NSDictionary?, in text: NSString, with prefix: String)
+    {
+        guard
+            let indices = data?.array(forKeyPath: Tweet.TwitterKey.Entities.indices),
+            let start = (indices.firstObject as? NSNumber)?.intValue, start >= 0,
+            let end = (indices.lastObject as? NSNumber)?.intValue, end > start
+        else {
+            return nil
         }
-        return NSMakeRange(NSNotFound, 0)
+        
+        var prefixAloneOrPrefixedMention = prefix
+        if let mention = data?.string(forKeyPath: Tweet.TwitterKey.Entities.text) {
+            prefixAloneOrPrefixedMention = mention.prependPrefixIfAbsent(prefix)
+        }
+        let expectedRange = NSRange(location: Int(start), length: end - start)
+        guard
+            let nsrange = text.rangeOfSubstring(withPrefix: prefixAloneOrPrefixedMention, expectedRange: expectedRange)
+        else {
+            return nil
+        }
+        
+        self.keyword = text.substring(with: nsrange)
+        self.nsrange = nsrange
     }
 }
+
+private let twitterDateFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "EEE MMM dd HH:mm:ss Z yyyy"
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    return formatter
+}()
 
 private extension String {
-    var asTwitterDate: NSDate? {
-        get {
-            let dateFormatter = NSDateFormatter()
-            dateFormatter.dateFormat = "EEE MMM dd HH:mm:ss Z yyyy"
-            return dateFormatter.dateFromString(self)
+    func prependPrefixIfAbsent(_ prefix: String) -> String {
+        return hasPrefix(prefix) ? self : prefix + self
+    }
+}
+
+private extension NSString
+{
+    func rangeOfSubstring(withPrefix prefix: String, expectedRange: NSRange) -> NSRange?
+    {
+        var offset = 0
+        var substringRange = expectedRange
+        while range.contains(substringRange) && substringRange.intersects(expectedRange) {
+            if substring(with: substringRange).hasPrefix(prefix) {
+                return substringRange
+            }
+            offset = offset > 0 ? -(offset+1) : -(offset-1)
+            substringRange.location += offset
+        }
+        
+        // the prefix does not intersect the expectedRange
+        // let's search for it elsewhere and if we find it,
+        // pick the one closest to expectedRange
+        
+        var searchRange = range
+        var bestMatchRange = NSRange.NotFound
+        var bestMatchDistance = Int.max
+        repeat {
+            substringRange = self.range(of: prefix, options: [], range: searchRange)
+            let distance = substringRange.distance(from: expectedRange)
+            if distance < bestMatchDistance {
+                bestMatchRange = substringRange
+                bestMatchDistance = distance
+            }
+            searchRange.length -= substringRange.end - searchRange.start
+            searchRange.start = substringRange.end
+        } while searchRange.length > 0
+        
+        if bestMatchRange.location != NSNotFound {
+            bestMatchRange.length = expectedRange.length
+            if range.contains(bestMatchRange) {
+                return bestMatchRange
+            }
+        }
+        
+        print("NSString.rangeOfSubstring(withPrefix:expectedRange:) couldn't find a keyword with the prefix \(prefix) near the range \(expectedRange) in \(self)")
+
+        return nil
+    }
+    
+    var range: NSRange { return NSRange(location:0, length: length) }
+}
+
+private extension NSRange
+{
+    func contains(_ range: NSRange) -> Bool {
+        return range.location >= location && range.location+range.length <= location+length
+    }
+
+    func intersects(_ range: NSRange) -> Bool {
+        if range.location == NSNotFound || location == NSNotFound {
+            return false
+        } else {
+            return (range.start >= start && range.start < end) || (range.end >= start && range.end < end)
         }
     }
+    
+    func distance(from range: NSRange) -> Int {
+        if range.location == NSNotFound || location == NSNotFound {
+            return Int.max
+        } else if intersects(range) {
+            return 0
+        } else {
+            return (end < range.start) ? range.start - end : start - range.end
+        }
+    }
+    
+    static let NotFound = NSRange(location: NSNotFound, length: 0)
+    
+    var start: Int {
+        get { return location }
+        set { location = newValue }
+    }
+
+    var end: Int { return location+length }
 }

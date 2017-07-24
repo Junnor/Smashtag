@@ -20,8 +20,8 @@ class TweetDetailTableViewController: UITableViewController {
     
     var unwindTappedString: String = ""
     
-    private var resutls = [[String]]()
-    private var image: UIImage?
+    fileprivate var resutls = [[String]]()
+    fileprivate var image: UIImage?
     
     // MARK: - ViewControllr Lifecycle
     
@@ -39,17 +39,17 @@ class TweetDetailTableViewController: UITableViewController {
     
     // MARK: - Segue
     
-    override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         print("prepareForSegue()")
         
         if segue.identifier == "ShowImage" {
-            if let imageVc = segue.destinationViewController as? TweetImageViewController {
+            if let imageVc = segue.destination as? TweetImageViewController {
                 imageVc.image = image
                 print("In tweet's image aspect ratio = \(image!.size.width / image!.size.height)")
             }
         } else {
             if let cell = sender as? UITableViewCell {
-                if let indexPath = tableView.indexPathForCell(cell) {
+                if let indexPath = tableView.indexPath(for: cell) {
                     if indexPath.section != 1 {
                         unwindTappedString = resutls[indexPath.section][indexPath.row]
                     }
@@ -60,40 +60,43 @@ class TweetDetailTableViewController: UITableViewController {
     
     // MARK: - TableView DataSource
 
-    override func numberOfSectionsInTableView(tableView: UITableView) -> Int {
+    override func numberOfSections(in tableView: UITableView) -> Int {
         return resutls.count
     }
 
-    override func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return resutls[section].count
     }
 
-    override func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
+    override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
 
         if indexPath.section == 0 {
-            let cell = tableView.dequeueReusableCellWithIdentifier("TweetImage") as! TweetImageTableViewCell
+            let cell = tableView.dequeueReusableCell(withIdentifier: "TweetImage") as! TweetImageTableViewCell
             if resutls[indexPath.section].count != 0 {
                 cell.spinner?.startAnimating()
             }
-            dispatch_async(dispatch_get_global_queue(Int(QOS_CLASS_USER_INITIATED.rawValue), 0)) { () -> Void in
-                let imageUrl = NSURL(string: self.mediaUrls[0])
-                let imageData = NSData(contentsOfURL: imageUrl!)
-                dispatch_async(dispatch_get_main_queue()) { () -> Void in
+            
+            DispatchQueue.global().async {
+                let imageUrl = URL(string: self.mediaUrls[0])
+                let imageData = try? Data(contentsOf: imageUrl!)
+                DispatchQueue.main.async { () -> Void in
                     self.image = UIImage(data: imageData!)
                     cell.tweetProfileImageView.image = self.image
                     cell.spinner?.stopAnimating()
                 }
+
             }
+            
             return cell
         } else {
             let identifier = indexPath.section == 1 ? "TweetUrl" : "TweetDetail"
-            let cell = tableView.dequeueReusableCellWithIdentifier(identifier, forIndexPath: indexPath) as UITableViewCell
+            let cell = tableView.dequeueReusableCell(withIdentifier: identifier, for: indexPath) as UITableViewCell
             cell.textLabel?.text = resutls[indexPath.section][indexPath.row]
             return cell
         }
     }
     
-    override func tableView(tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+    override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
         
         switch section {
         case 0: return resutls[0].count != 0 ? "Images" : nil
@@ -107,7 +110,7 @@ class TweetDetailTableViewController: UITableViewController {
     
     // MARK: - TableView Delegate
 
-    override func tableView(tableView: UITableView, heightForRowAtIndexPath indexPath: NSIndexPath) -> CGFloat {
+    override func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         if indexPath.section == 0 {
             return self.view.bounds.size.width / CGFloat(imageAspectRatio)
         } else {
@@ -115,13 +118,13 @@ class TweetDetailTableViewController: UITableViewController {
         }
     }
     
-    override func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         // The order of performance 
         // prepareForSegue() -> unwindForSegue() ->  didSelectRowAtIndexPath()
         print("didSelectRowAtIndexPath()")
         if indexPath.section == 1 {
-            let url = NSURL(string: urls[0])
-            UIApplication.sharedApplication().openURL(url!)
+            let url = URL(string: urls[0])
+            UIApplication.shared.openURL(url!)
         }
     }
     

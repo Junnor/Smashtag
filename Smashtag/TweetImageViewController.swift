@@ -22,8 +22,8 @@ class TweetImageViewController: UIViewController {
         }
     }
     
-    private var imageView = UIImageView()
-    private func getImageViewsFrameFromImage(image: UIImage?) -> CGRect {
+    fileprivate var imageView = UIImageView()
+    fileprivate func getImageViewsFrameFromImage(_ image: UIImage?) -> CGRect {
         if image != nil {
             let viewAspectRatio = self.view.bounds.size.width / self.view.bounds.size.height
             let imageAspectRatio = (image?.size.width)! / (image?.size.height)!
@@ -43,7 +43,7 @@ class TweetImageViewController: UIViewController {
             print("In imageView's aspect ratio = \(imageWidth / imageHeight)")
             return  CGRect(x: 0, y: 0, width: imageWidth, height: imageHeight)
         } else {
-            return CGRectZero
+            return CGRect.zero
         }
     }
     
@@ -64,7 +64,7 @@ class TweetImageViewController: UIViewController {
 
 extension TweetImageViewController: UIScrollViewDelegate {
     
-    func viewForZoomingInScrollView(scrollView: UIScrollView) -> UIView? {
+    func viewForZooming(in scrollView: UIScrollView) -> UIView? {
         return imageView
     }
     

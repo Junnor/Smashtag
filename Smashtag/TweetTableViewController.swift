@@ -25,7 +25,7 @@ class TweetTableViewController: UITableViewController, UITextFieldDelegate {
         }
     }
     
-    private var tweets = [[Tweet]]()
+    fileprivate var tweets = [[Tweet]]()
     
     // MARK: - View Controller lifecycel
 
@@ -39,20 +39,20 @@ class TweetTableViewController: UITableViewController, UITextFieldDelegate {
     }
     
     // get more data
-    private var lastSuccessfulRequst: TwitterRequest?
-    private var nextRequestToAttempt: TwitterRequest? {
+    fileprivate var lastSuccessfulRequst: Request?
+    fileprivate var nextRequestToAttempt: Request? {
         if lastSuccessfulRequst == nil {
             if searchText != nil {
-                return TwitterRequest(search: searchText!, count: 100)
+                return Request(search: searchText!, count: 100)
             } else {
                 return nil
             }
         } else {
-            return lastSuccessfulRequst!.requestForNewer
+            return lastSuccessfulRequst!.newer
         }
     }
     
-    private func refresh() {
+    fileprivate func refresh() {
         if refreshControl != nil {
             refreshControl?.beginRefreshing()
         }
@@ -61,20 +61,20 @@ class TweetTableViewController: UITableViewController, UITextFieldDelegate {
     }
     
     
-    @IBAction func refresh(sender: UIRefreshControl?) {
+    @IBAction func refresh(_ sender: UIRefreshControl?) {
         if searchText != nil {
             if let request = nextRequestToAttempt {
-                let qos = Int(QOS_CLASS_USER_INITIATED.rawValue)
-                dispatch_async(dispatch_get_global_queue(qos, 0)) { () -> Void in
+                DispatchQueue.global().async {
                     request.fetchTweets { (newTweets) -> Void in
-                        dispatch_async(dispatch_get_main_queue()) { () -> Void in
+                        DispatchQueue.main.async { () -> Void in
                             if newTweets.count > 0 {
-                                self.tweets.insert(newTweets, atIndex: 0)
+                                self.tweets.insert(newTweets, at: 0)
                                 self.tableView.reloadData()
                                 sender?.endRefreshing()
                             }
                         }
                     }
+
                 }
             }
         } else {
@@ -90,7 +90,7 @@ class TweetTableViewController: UITableViewController, UITextFieldDelegate {
         }
     }
     
-    func textFieldShouldReturn(textField: UITextField) -> Bool {
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         if textField == searchTextField {
             textField.resignFirstResponder()
             searchText = textField.text
@@ -101,8 +101,8 @@ class TweetTableViewController: UITableViewController, UITextFieldDelegate {
 
     // MARK: - Segue
     
-    override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {
-        let tweetDTV = segue.destinationViewController as? TweetDetailTableViewController
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        let tweetDTV = segue.destination as? TweetDetailTableViewController
         if let identifier = segue.identifier {
             if identifier == "ShowTweetDetail" {
                 if let tweetCell = sender as? TweetTableViewCell {
@@ -126,16 +126,16 @@ class TweetTableViewController: UITableViewController, UITextFieldDelegate {
         }
     }
     
-    @IBAction override func unwindForSegue(unwindSegue: UIStoryboardSegue, towardsViewController subsequentVC: UIViewController) {
+    @IBAction override func unwind(for unwindSegue: UIStoryboardSegue, towardsViewController subsequentVC: UIViewController) {
         print("unwindForSegue()")
         if unwindSegue.identifier == "TweetDetailComeBack" {
-            if let backVC = unwindSegue.sourceViewController as? TweetDetailTableViewController {
+            if let backVC = unwindSegue.source as? TweetDetailTableViewController {
                 searchText = backVC.unwindTappedString
             }
         }
     }
     
-    func stringsForTweetInfos(keys: [Tweet.IndexedKeyword]) -> [String] {
+    func stringsForTweetInfos(_ keys: [Mention]) -> [String] {
         var strings = [String]()
         for key in keys {
             strings.append(key.keyword)
@@ -145,16 +145,16 @@ class TweetTableViewController: UITableViewController, UITextFieldDelegate {
 
     // MARK: - TableView DataSource
 
-    override func numberOfSectionsInTableView(tableView: UITableView) -> Int {
+    override func numberOfSections(in tableView: UITableView) -> Int {
         return tweets.count
     }
 
-    override func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return tweets[section].count
     }
 
-    override func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCellWithIdentifier("Tweet", forIndexPath: indexPath) as!  TweetTableViewCell
+    override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "Tweet", for: indexPath) as!  TweetTableViewCell
 
         // Configure the cell...
         cell.tweet = tweets[indexPath.section][indexPath.row]

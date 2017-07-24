@@ -21,14 +21,14 @@ class TweetRecentSearchTableViewController: UITableViewController {
         }
     }
     
-    private let ResultsKey = "ResultsKey"
-    private let defaults = NSUserDefaults.standardUserDefaults()
-    private var recentSearchResults: [String] {
+    fileprivate let ResultsKey = "ResultsKey"
+    fileprivate let defaults = UserDefaults.standard
+    fileprivate var recentSearchResults: [String] {
         get {
-            return defaults.objectForKey(ResultsKey) as? [String] ?? ["#stanford"]
+            return defaults.object(forKey: ResultsKey) as? [String] ?? ["#stanford"]
         }
         set {
-            defaults.setObject(newValue, forKey: ResultsKey)
+            defaults.set(newValue, forKey: ResultsKey)
             print("results = \(newValue)")
         }
     }
@@ -36,19 +36,19 @@ class TweetRecentSearchTableViewController: UITableViewController {
     
     // MARK: - ViewController Lifecycle
     
-    override func viewWillAppear(animated: Bool) {
+    override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         tableView.reloadData()
     }
 
     // MARK: - TableView DataSource
 
-    override func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return recentSearchResults.count
     }
 
-    override func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCellWithIdentifier("Recent Search", forIndexPath: indexPath)
+    override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "Recent Search", for: indexPath)
         cell.textLabel?.text = recentSearchResults[indexPath.row]
 
         return cell
@@ -56,7 +56,7 @@ class TweetRecentSearchTableViewController: UITableViewController {
     
     // MARK: - TableView Delegate
 
-    override func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let selectedData = recentSearchResults[indexPath.row]
         
         var destination = self.tabBarController?.viewControllers![0]
